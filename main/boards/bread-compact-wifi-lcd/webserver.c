@@ -84,6 +84,10 @@ static const char html_content[] =
 "<button class=\"btn\" style=\"background:#e91e63\" id=\"btnTiltLeft\">⬅️ Nghiêng TRÁI</button>"
 "<button class=\"btn\" style=\"background:#9c27b0\" id=\"btnTiltRight\">➡️ Nghiêng PHẢI</button>"
 "</div>"
+"<div class=\"buttons\" style=\"margin-top:10px\">"
+"<button class=\"btn\" style=\"background:#ff5722\" id=\"btnCombo1\">🎯 COMBO 1 (Trái+Vẫy RL+LF)</button>"
+"<button class=\"btn\" style=\"background:#00bcd4\" id=\"btnCombo2\">🎯 COMBO 2 (Phải+Vẫy LL+RF)</button>"
+"</div>"
 "<div class=\"buttons\" style=\"margin-top:5px\">"
 "<button class=\"btn\" style=\"background:#e74c3c;grid-column:span 2\" id=\"btnManualOff\">❌ Tắt Manual Mode (Về điều khiển thường)</button>"
 "</div>"
@@ -154,7 +158,7 @@ static const char html_content[] =
 "</div>"
 "</div>"
 "<div class=\"cal-section\">"
-"<h3>🦵 Standing Position</h3>"
+"<h3>🦵 Standing Position <span style='color:#f39c12;font-size:11px'>⚡ Realtime</span></h3>"
 "<div class=\"cal-item\">"
 "<label>Left Leg (LA0)</label>"
 "<div class=\"cal-row\"><input type=\"range\" id=\"la0\" min=\"0\" max=\"180\" value=\"60\"><span class=\"cal-value\" id=\"la0Disp\">60</span></div>"
@@ -184,7 +188,7 @@ static const char html_content[] =
 "</div>"
 "</div>"
 "<div class=\"cal-section\">"
-"<h3>⚙️ Roll Position</h3>"
+"<h3>⚙️ Roll Position <span style='color:#f39c12;font-size:11px'>⚡ Realtime</span></h3>"
 "<div class=\"cal-item\">"
 "<label>Left Leg (LA1)</label>"
 "<div class=\"cal-row\"><input type=\"range\" id=\"la1\" min=\"0\" max=\"180\" value=\"160\"><span class=\"cal-value\" id=\"la1Disp\">160</span></div>"
@@ -247,6 +251,8 @@ static const char html_content[] =
 "document.getElementById('btnStopFoot').onclick=()=>{fetch('/testfoot?foot=stop').catch(e=>console.log('Req failed'));};"
 "document.getElementById('btnTiltLeft').onclick=()=>{fetch('/tilt?dir=left').catch(e=>console.log('Req failed'));};"
 "document.getElementById('btnTiltRight').onclick=()=>{fetch('/tilt?dir=right').catch(e=>console.log('Req failed'));};"
+"document.getElementById('btnCombo1').onclick=()=>{alert('🎯 COMBO 1 đang chạy...');fetch('/combo?id=1').then(()=>alert('✓ COMBO 1 hoàn tất!')).catch(e=>console.log('Req failed'));};"
+"document.getElementById('btnCombo2').onclick=()=>{alert('🎯 COMBO 2 đang chạy...');fetch('/combo?id=2').then(()=>alert('✓ COMBO 2 hoàn tất!')).catch(e=>console.log('Req failed'));};"
 "document.getElementById('btnManualOff').onclick=()=>{fetch('/manualoff').then(()=>alert('✓ Đã tắt Manual Mode!')).catch(e=>console.log('Req failed'));};"
 "for(let i=0;i<7;i++){"
 "const el=document.getElementById('srv'+i);"
@@ -255,19 +261,30 @@ static const char html_content[] =
 "fetch('/servo?ch='+i+'&angle='+el.value).catch(e=>console.log('Req failed'));"
 "};"
 "}"
-"const sliders=['lfn','rfn','lff','rff','lfb','rfb','la0','ra0','latl','ratl','latr','ratr','la1','ra1'];"
+"const sliders=['lfn','rfn','lff','rff','lfb','rfb','latl','ratl','latr','ratr'];"
 "sliders.forEach(id=>{"
 "const el=document.getElementById(id);"
 "el.oninput=()=>{document.getElementById(id+'Disp').textContent=el.value;};"
 "});"
+"const realtimeSliders=[{id:'la0',ch:1},{id:'ra0',ch:3},{id:'la1',ch:1},{id:'ra1',ch:3}];"
+"realtimeSliders.forEach(s=>{"
+"const el=document.getElementById(s.id);"
+"el.oninput=()=>{"
+"document.getElementById(s.id+'Disp').textContent=el.value;"
+"fetch('/servo?ch='+s.ch+'&angle='+el.value).catch(e=>console.log('Req failed'));"
+"};"
+"});"
 "document.getElementById('btnApply').onclick=()=>{"
-"const params=sliders.map(id=>id+'='+document.getElementById(id).value).join('&');"
+"const allSliders=['lfn','rfn','lff','rff','lfb','rfb','la0','ra0','latl','ratl','latr','ratr','la1','ra1'];"
+"const params=allSliders.map(id=>id+'='+document.getElementById(id).value).join('&');"
 "fetch('/calibrate?'+params).then(r=>r.text()).then(s=>{alert('✓ '+s);});};"
 "document.getElementById('btnSaveTop').onclick=()=>{"
-"const params=sliders.map(id=>id+'='+document.getElementById(id).value).join('&');"
+"const allSliders=['lfn','rfn','lff','rff','lfb','rfb','la0','ra0','latl','ratl','latr','ratr','la1','ra1'];"
+"const params=allSliders.map(id=>id+'='+document.getElementById(id).value).join('&');"
 "fetch('/calibrate?'+params).then(r=>r.text()).then(s=>{alert('✓ '+s);});};"
 "fetch('/getCal').then(r=>r.json()).then(d=>{"
-"sliders.forEach(id=>{"
+"const allSliders=['lfn','rfn','lff','rff','lfb','rfb','la0','ra0','latl','ratl','latr','ratr','la1','ra1'];"
+"allSliders.forEach(id=>{"
 "if(d[id]!==undefined){"
 "document.getElementById(id).value=d[id];"
 "document.getElementById(id+'Disp').textContent=d[id];"
@@ -482,6 +499,24 @@ static esp_err_t manualoff_handler(httpd_req_t *req) {
     return ESP_OK;
 }
 
+// Handler for combo actions
+static esp_err_t combo_handler(httpd_req_t *req) {
+    int combo_id = get_query_param_int(req, "id", 0);
+    
+    if (combo_id == 1) {
+        ninja_combo1();
+        httpd_resp_sendstr(req, "COMBO 1 completed");
+    } else if (combo_id == 2) {
+        ninja_combo2();
+        httpd_resp_sendstr(req, "COMBO 2 completed");
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid combo id");
+        return ESP_FAIL;
+    }
+    
+    return ESP_OK;
+}
+
 // URI handlers
 static const httpd_uri_t uri_root = {
     .uri = "/",
@@ -546,11 +581,18 @@ static const httpd_uri_t uri_manualoff = {
     .user_ctx = NULL
 };
 
+static const httpd_uri_t uri_combo = {
+    .uri = "/combo",
+    .method = HTTP_GET,
+    .handler = combo_handler,
+    .user_ctx = NULL
+};
+
 httpd_handle_t webserver_start(void) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.lru_purge_enable = true;
-    config.max_uri_handlers = 14;
+    config.max_uri_handlers = 16;
     
     ESP_LOGI(TAG, "Starting web server on port %d", config.server_port);
     
@@ -564,6 +606,7 @@ httpd_handle_t webserver_start(void) {
         httpd_register_uri_handler(server, &uri_tilt);
         httpd_register_uri_handler(server, &uri_servo);
         httpd_register_uri_handler(server, &uri_manualoff);
+        httpd_register_uri_handler(server, &uri_combo);
         
         ESP_LOGI(TAG, "Web server started!");
         return server;

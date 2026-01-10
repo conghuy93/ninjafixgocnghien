@@ -828,3 +828,83 @@ void set_manual_mode(bool enable) {
         ESP_LOGI(TAG, "Manual mode OFF - returning to normal control");
     }
 }
+
+// ========== COMBO FUNCTIONS ==========
+
+void ninja_combo1(void) {
+    control_state.manual_mode = true;
+    ESP_LOGI(TAG, "🎯 COMBO 1 START");
+    
+    // Step 1: Tilt left and wait 1s
+    ESP_LOGI(TAG, "  Step 1: Tilt LEFT...");
+    servo_attach(SERVO_CH_LEFT_LEG);
+    servo_attach(SERVO_CH_RIGHT_LEG);
+    servo_write(SERVO_CH_LEFT_LEG, calibration.latl);
+    servo_write(SERVO_CH_RIGHT_LEG, calibration.ratl);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    // Step 2: Wave Right Leg (RL) 3 times: 135 -> 155 -> 180
+    ESP_LOGI(TAG, "  Step 2: Wave Right Leg 3 times (135->155->180)");
+    for (int i = 0; i < 3; i++) {
+        servo_write(SERVO_CH_RIGHT_LEG, 135);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        servo_write(SERVO_CH_RIGHT_LEG, 155);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        servo_write(SERVO_CH_RIGHT_LEG, 180);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        ESP_LOGI(TAG, "    Wave %d/3 complete", i + 1);
+    }
+    
+    // Step 3: Rotate Left Foot (LF) for 1s
+    ESP_LOGI(TAG, "  Step 3: Rotate Left Foot for 1s");
+    servo_attach(SERVO_CH_LEFT_FOOT);
+    int lf_angle = calibration.lf_neutral + calibration.lffwrs;
+    servo_write(SERVO_CH_LEFT_FOOT, lf_angle);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    servo_write(SERVO_CH_LEFT_FOOT, calibration.lf_neutral);
+    
+    // Step 4: Return to home
+    ESP_LOGI(TAG, "  Step 4: Return to HOME");
+    control_state.manual_mode = false;
+    go_home();
+    ESP_LOGI(TAG, "🎯 COMBO 1 COMPLETE");
+}
+
+void ninja_combo2(void) {
+    control_state.manual_mode = true;
+    ESP_LOGI(TAG, "🎯 COMBO 2 START");
+    
+    // Step 1: Tilt right and wait 1s
+    ESP_LOGI(TAG, "  Step 1: Tilt RIGHT...");
+    servo_attach(SERVO_CH_LEFT_LEG);
+    servo_attach(SERVO_CH_RIGHT_LEG);
+    servo_write(SERVO_CH_LEFT_LEG, calibration.latr);
+    servo_write(SERVO_CH_RIGHT_LEG, calibration.ratr);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    // Step 2: Wave Left Leg (LL) 3 times: 10 -> 30 -> 75
+    ESP_LOGI(TAG, "  Step 2: Wave Left Leg 3 times (10->30->75)");
+    for (int i = 0; i < 3; i++) {
+        servo_write(SERVO_CH_LEFT_LEG, 10);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        servo_write(SERVO_CH_LEFT_LEG, 30);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        servo_write(SERVO_CH_LEFT_LEG, 75);
+        vTaskDelay(pdMS_TO_TICKS(200));
+        ESP_LOGI(TAG, "    Wave %d/3 complete", i + 1);
+    }
+    
+    // Step 3: Rotate Right Foot (RF) for 1s
+    ESP_LOGI(TAG, "  Step 3: Rotate Right Foot for 1s");
+    servo_attach(SERVO_CH_RIGHT_FOOT);
+    int rf_angle = calibration.rf_neutral - calibration.rffwrs;
+    servo_write(SERVO_CH_RIGHT_FOOT, rf_angle);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    servo_write(SERVO_CH_RIGHT_FOOT, calibration.rf_neutral);
+    
+    // Step 4: Return to home
+    ESP_LOGI(TAG, "  Step 4: Return to HOME");
+    control_state.manual_mode = false;
+    go_home();
+    ESP_LOGI(TAG, "🎯 COMBO 2 COMPLETE");
+}

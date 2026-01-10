@@ -144,6 +144,10 @@ void servo_direct_write(int channel, int angle);
 // Manual mode control
 void set_manual_mode(bool enable);
 
+// Combo functions
+void ninja_combo1(void);  // Tilt left, wave RL, rotate LF, go home
+void ninja_combo2(void);  // Tilt right, wave LL, rotate RF, go home
+
 // Main control loop task
 void robot_control_task(void *pvParameters);
 
