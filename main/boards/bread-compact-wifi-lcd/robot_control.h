@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // GPIO Pins for Servos
 #define SERVO_LEFT_FOOT_PIN     38
 #define SERVO_LEFT_LEG_PIN      17
@@ -150,5 +154,9 @@ void ninja_combo2(void);  // Tilt right, wave LL, rotate RF, go home
 
 // Main control loop task
 void robot_control_task(void *pvParameters);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // ROBOT_CONTROL_H

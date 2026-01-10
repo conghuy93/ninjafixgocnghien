@@ -7,6 +7,7 @@
 #include "config.h"
 #include "mcp_server.h"
 #include "lamp_controller.h"
+#include "robot_mcp_controller.h"
 #include "led/single_led.h"
 #include "power_manager.h"
 
@@ -171,6 +172,7 @@ private:
     // 物联网初始化，添加对 AI 可见设备
     void InitializeTools() {
         static LampController lamp(LAMP_GPIO);
+        static RobotMcpController robot_mcp;
     }
 
     void StartNetwork() override {
