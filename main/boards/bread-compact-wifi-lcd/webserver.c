@@ -80,6 +80,45 @@ static const char html_content[] =
 "<button class=\"btn\" style=\"background:#27ae60\" id=\"btnTestBoth\">🦶🦶 BOTH 3s</button>"
 "<button class=\"btn\" style=\"background:#e74c3c\" id=\"btnStopFoot\">⏹️ STOP</button>"
 "</div>"
+"<div class=\"buttons\" style=\"margin-top:10px\">"
+"<button class=\"btn\" style=\"background:#e91e63\" id=\"btnTiltLeft\">⬅️ Nghiêng TRÁI</button>"
+"<button class=\"btn\" style=\"background:#9c27b0\" id=\"btnTiltRight\">➡️ Nghiêng PHẢI</button>"
+"</div>"
+"<div class=\"buttons\" style=\"margin-top:5px\">"
+"<button class=\"btn\" style=\"background:#e74c3c;grid-column:span 2\" id=\"btnManualOff\">❌ Tắt Manual Mode (Về điều khiển thường)</button>"
+"</div>"
+"<div class=\"calibration\" style=\"margin-top:15px\">"
+"<h2>🎮 Điều Khiển Servo Realtime</h2>"
+"<p style=\"color:#f39c12;font-size:11px;margin:0 0 10px 0;\">⚡ Kéo thanh trượt để điều chỉnh servo trực tiếp</p>"
+"<div class=\"cal-item\">"
+"<label>🦶 Left Foot (CH0)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv0\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv0Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>🦵 Left Leg (CH1)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv1\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv1Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>🦶 Right Foot (CH2)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv2\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv2Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>🦵 Right Leg (CH3)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv3\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv3Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>💪 Left Arm (CH4)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv4\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv4Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>💪 Right Arm (CH5)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv5\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv5Disp\">90</span></div>"
+"</div>"
+"<div class=\"cal-item\">"
+"<label>🗣️ Head (CH6)</label>"
+"<div class=\"cal-row\"><input type=\"range\" id=\"srv6\" min=\"0\" max=\"180\" value=\"90\"><span class=\"cal-value\" id=\"srv6Disp\">90</span></div>"
+"</div>"
+"</div>"
 "<div class=\"calibration\">"
 "<h2>🎛️ Robot Calibration</h2>"
 "<p style=\"color:#888;font-size:12px;margin:5px 0 15px 0;\">💡 Điều chỉnh các thông số rồi nhấn Apply. Test sau mỗi lần thay đổi.</p>"
@@ -206,6 +245,16 @@ static const char html_content[] =
 "document.getElementById('btnTestRF').onclick=()=>{fetch('/testfoot?foot=right').catch(e=>console.log('Req failed'));};"
 "document.getElementById('btnTestBoth').onclick=()=>{fetch('/testfoot?foot=both').catch(e=>console.log('Req failed'));};"
 "document.getElementById('btnStopFoot').onclick=()=>{fetch('/testfoot?foot=stop').catch(e=>console.log('Req failed'));};"
+"document.getElementById('btnTiltLeft').onclick=()=>{fetch('/tilt?dir=left').catch(e=>console.log('Req failed'));};"
+"document.getElementById('btnTiltRight').onclick=()=>{fetch('/tilt?dir=right').catch(e=>console.log('Req failed'));};"
+"document.getElementById('btnManualOff').onclick=()=>{fetch('/manualoff').then(()=>alert('✓ Đã tắt Manual Mode!')).catch(e=>console.log('Req failed'));};"
+"for(let i=0;i<7;i++){"
+"const el=document.getElementById('srv'+i);"
+"el.oninput=()=>{"
+"document.getElementById('srv'+i+'Disp').textContent=el.value;"
+"fetch('/servo?ch='+i+'&angle='+el.value).catch(e=>console.log('Req failed'));"
+"};"
+"}"
 "const sliders=['lfn','rfn','lff','rff','lfb','rfb','la0','ra0','latl','ratl','latr','ratr','la1','ra1'];"
 "sliders.forEach(id=>{"
 "const el=document.getElementById(id);"
@@ -351,6 +400,7 @@ static esp_err_t get_cal_handler(httpd_req_t *req) {
 
 // Handler for home endpoint
 static esp_err_t home_handler(httpd_req_t *req) {
+    set_manual_mode(false);  // Tắt manual mode khi về HOME
     go_home();
     httpd_resp_sendstr(req, "Robot returned to HOME position");
     return ESP_OK;
@@ -381,6 +431,54 @@ static esp_err_t testfoot_handler(httpd_req_t *req) {
         return ESP_FAIL;
     }
     
+    return ESP_OK;
+}
+
+// Handler for tilt endpoint
+static esp_err_t tilt_handler(httpd_req_t *req) {
+    char dir[16];
+    if (get_query_param(req, "dir", dir, sizeof(dir)) != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Missing dir param");
+        return ESP_FAIL;
+    }
+    
+    if (strcmp(dir, "left") == 0) {
+        ninja_tilt_left();
+        httpd_resp_sendstr(req, "Tilted LEFT");
+    } else if (strcmp(dir, "right") == 0) {
+        ninja_tilt_right();
+        httpd_resp_sendstr(req, "Tilted RIGHT");
+    } else {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid dir param");
+        return ESP_FAIL;
+    }
+    
+    return ESP_OK;
+}
+
+// Handler for direct servo control
+static esp_err_t servo_handler(httpd_req_t *req) {
+    int ch = get_query_param_int(req, "ch", -1);
+    int angle = get_query_param_int(req, "angle", -1);
+    
+    if (ch < 0 || ch > 6 || angle < 0 || angle > 180) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid params");
+        return ESP_FAIL;
+    }
+    
+    servo_direct_write(ch, angle);
+    
+    char resp[32];
+    snprintf(resp, sizeof(resp), "Servo %d = %d°", ch, angle);
+    httpd_resp_sendstr(req, resp);
+    return ESP_OK;
+}
+
+// Handler to disable manual mode
+static esp_err_t manualoff_handler(httpd_req_t *req) {
+    set_manual_mode(false);
+    go_home();
+    httpd_resp_sendstr(req, "Manual mode OFF");
     return ESP_OK;
 }
 
@@ -427,11 +525,32 @@ static const httpd_uri_t uri_testfoot = {
     .user_ctx = NULL
 };
 
+static const httpd_uri_t uri_tilt = {
+    .uri = "/tilt",
+    .method = HTTP_GET,
+    .handler = tilt_handler,
+    .user_ctx = NULL
+};
+
+static const httpd_uri_t uri_servo = {
+    .uri = "/servo",
+    .method = HTTP_GET,
+    .handler = servo_handler,
+    .user_ctx = NULL
+};
+
+static const httpd_uri_t uri_manualoff = {
+    .uri = "/manualoff",
+    .method = HTTP_GET,
+    .handler = manualoff_handler,
+    .user_ctx = NULL
+};
+
 httpd_handle_t webserver_start(void) {
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.lru_purge_enable = true;
-    config.max_uri_handlers = 10;
+    config.max_uri_handlers = 14;
     
     ESP_LOGI(TAG, "Starting web server on port %d", config.server_port);
     
@@ -442,6 +561,9 @@ httpd_handle_t webserver_start(void) {
         httpd_register_uri_handler(server, &uri_get_cal);
         httpd_register_uri_handler(server, &uri_home);
         httpd_register_uri_handler(server, &uri_testfoot);
+        httpd_register_uri_handler(server, &uri_tilt);
+        httpd_register_uri_handler(server, &uri_servo);
+        httpd_register_uri_handler(server, &uri_manualoff);
         
         ESP_LOGI(TAG, "Web server started!");
         return server;

@@ -71,6 +71,7 @@ static control_state_t control_state = {
     .button_y = 0,
     .test_mode_active = false,
     .test_cycles_remaining = 0,
+    .manual_mode = false,
 };
 
 // Robot mode
@@ -726,6 +727,12 @@ void robot_control_task(void *pvParameters) {
     static int8_t last_j_y = 0;
     
     while (1) {
+        // Skip normal control if in manual mode
+        if (control_state.manual_mode) {
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
+        
         // Debug: Print joystick values when they change
         if (control_state.j_x != last_j_x || control_state.j_y != last_j_y) {
             const char *direction = "";
@@ -782,5 +789,42 @@ void robot_control_task(void *pvParameters) {
         }
         
         vTaskDelay(pdMS_TO_TICKS(2));
+    }
+}
+
+// ========== TILT FUNCTIONS ==========
+
+void ninja_tilt_left(void) {
+    control_state.manual_mode = true;  // Enable manual mode
+    ESP_LOGI(TAG, "🔄 Tilt LEFT and HOLD (manual mode ON)");
+    servo_attach(SERVO_CH_LEFT_LEG);
+    servo_attach(SERVO_CH_RIGHT_LEG);
+    servo_write(SERVO_CH_LEFT_LEG, calibration.latl);
+    servo_write(SERVO_CH_RIGHT_LEG, calibration.ratl);
+}
+
+void ninja_tilt_right(void) {
+    control_state.manual_mode = true;  // Enable manual mode
+    ESP_LOGI(TAG, "🔄 Tilt RIGHT and HOLD (manual mode ON)");
+    servo_attach(SERVO_CH_LEFT_LEG);
+    servo_attach(SERVO_CH_RIGHT_LEG);
+    servo_write(SERVO_CH_LEFT_LEG, calibration.latr);
+    servo_write(SERVO_CH_RIGHT_LEG, calibration.ratr);
+}
+
+// ========== DIRECT SERVO CONTROL ==========
+
+void servo_direct_write(int channel, int angle) {
+    if (channel < 0 || channel >= SERVO_CH_MAX) return;
+    control_state.manual_mode = true;  // Enable manual mode
+    servo_attach((servo_channel_t)channel);
+    servo_write((servo_channel_t)channel, angle);
+    ESP_LOGI(TAG, "Direct servo CH%d = %d° (manual mode ON)", channel, angle);
+}
+
+void set_manual_mode(bool enable) {
+    control_state.manual_mode = enable;
+    if (!enable) {
+        ESP_LOGI(TAG, "Manual mode OFF - returning to normal control");
     }
 }

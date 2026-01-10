@@ -75,6 +75,7 @@ typedef struct {
     uint8_t button_y;   // Walk mode
     bool test_mode_active;
     int test_cycles_remaining;
+    bool manual_mode;   // Manual/direct servo control mode
 } control_state_t;
 
 // Default calibration values
@@ -132,6 +133,16 @@ void load_calibration_from_nvs(void);
 // Control state
 control_state_t* get_control_state(void);
 robot_mode_t get_robot_mode(void);
+
+// Tilt functions (hold position)
+void ninja_tilt_left(void);   // Tilt left and hold
+void ninja_tilt_right(void);  // Tilt right and hold
+
+// Direct servo control for real-time adjustment
+void servo_direct_write(int channel, int angle);
+
+// Manual mode control
+void set_manual_mode(bool enable);
 
 // Main control loop task
 void robot_control_task(void *pvParameters);
